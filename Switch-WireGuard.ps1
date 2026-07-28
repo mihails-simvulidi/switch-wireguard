@@ -80,7 +80,7 @@ function Ensure-WireGuardTunnelService {
 }
 
 try {
-    $IsInNetwork = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -like $IpMask }
+    $IsInNetwork = Get-NetIPAddress -AddressFamily IPv4 -AddressState Preferred | Where-Object { $_.IPAddress -like $IpMask }
 }
 catch {
     Write-Error "Failed to get network addresses: $_"
