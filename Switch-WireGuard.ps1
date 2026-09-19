@@ -1,3 +1,5 @@
+$ErrorActionPreference = Stop
+
 param (
     [Parameter(Mandatory)]
     [ValidatePattern('^[A-Za-z0-9_-]+$')]
@@ -12,7 +14,7 @@ param (
 )
 
 function Get-WireGuardExePath {
-    $cmd = Get-Command wireguard.exe -ErrorAction SilentlyContinue
+    $cmd = Get-Command wireguard.exe
     if ($cmd) {
         return $cmd.Source
     }
@@ -25,7 +27,7 @@ function Get-WireGuardExePath {
     return $null
 }
 
-function Ensure-WireGuardTunnelService {
+function Get-WireGuardTunnelService {
     param (
         [Parameter(Mandatory)]
         [string]$TunnelName,
@@ -70,10 +72,7 @@ function Ensure-WireGuardTunnelService {
     Write-Host "Recreating service '$serviceName' from '$resolvedConfigPath'..."
     & $wireguardExe /installtunnelservice $resolvedConfigPath
 
-    $existing = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
-    if (-not $existing) {
-        throw "Service '$serviceName' is still missing after recreation attempt."
-    }
+    $existing = Get-Service -Name $serviceName
 
     Write-Host "Service '$serviceName' recreated."
     return $serviceName
@@ -97,13 +96,17 @@ try {
         }
 
         Write-Host "IP matching '$IpMask' found. Stopping service '$ServiceName'..."
-        Stop-Service -Name $ServiceName -ErrorAction Stop
+        Stop-Service -Name $ServiceName
         Write-Host "Service '$ServiceName' stopped."
     }
     else {
-        $ServiceName = Ensure-WireGuardTunnelService -TunnelName $TunnelName -ConfigPath $ConfigPath
+        if (-not (Test-Connection -ComputerName 1.1.1.1 -Count 1 -Quiet)) {
+            Write-Host "No internet connectivity detected, skipping service start."
+        }
+
+        $ServiceName = Get-WireGuardTunnelService -TunnelName $TunnelName -ConfigPath $ConfigPath
         Write-Host "IP matching '$IpMask' not found. Starting service '$ServiceName'..."
-        Start-Service -Name $ServiceName -ErrorAction Stop
+        Start-Service -Name $ServiceName
         Write-Host "Service '$ServiceName' started."
     }
 }
